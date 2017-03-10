@@ -18,10 +18,10 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ##############################################################################
-import simplejson
-from openerp import http
-from openerp.addons.web.controllers import main
-from openerp.addons.email_template import email_template
+import json
+from odoo import http
+from odoo.addons.web.controllers import main
+from odoo.addons.mail.models import mail_template
 
 
 class Reports(main.Reports):
@@ -29,19 +29,16 @@ class Reports(main.Reports):
     @main.serialize_exception
     def index(self, action, token):
         result = super(Reports, self).index(action, token)
-        action = simplejson.loads(action)
+        action = json.loads(action)
         context = dict(http.request.context)
         context.update(action["context"])
-        report_xml = http.request.session.model('ir.actions.report.xml')
-        report_ids = report_xml.search(
-            [('report_name', '=', action['report_name'])],
-            0, False, False, context)
-        for report in report_xml.browse(report_ids):
-            if not report.download_filename:
-                continue
+        reports = http.request.env['ir.actions.report.xml'].search([
+            ('report_name', '=', action['report_name']),
+            ('download_filename', '!=', False)])
+        for report in reports:
             objects = http.request.session.model(context['active_model'])\
                 .browse(context['active_ids'])
-            generated_filename = email_template.mako_template_env\
+            generated_filename = mail_template.mako_template_env\
                 .from_string(report.download_filename)\
                 .render({
                     'objects': objects,

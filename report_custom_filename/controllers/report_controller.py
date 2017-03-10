@@ -18,31 +18,30 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ##############################################################################
-from openerp import http
-from openerp.addons.email_template import email_template
-from openerp.addons.report.controllers.main import ReportController
-from openerp.addons.web.controllers.main import content_disposition
+from odoo import http
+from odoo.addons.mail.models import mail_template
+from odoo.addons.report.controllers.main import ReportController
+from odoo.addons.web.controllers.main import content_disposition
 
 
-class ReportController(ReportController):
+class ReportControllerCustom(ReportController):
     @http.route([
         '/report/<path:converter>/<reportname>',
         '/report/<path:converter>/<reportname>/<docids>',
     ])
     def report_routes(self, reportname, docids=None, converter=None, **data):
-        response = super(ReportController, self).report_routes(
+        response = super(ReportControllerCustom, self).report_routes(
             reportname, docids=docids, converter=converter, **data)
         if docids:
             docids = [int(i) for i in docids.split(',')]
-        report_xml = http.request.session.model('ir.actions.report.xml')
-        report_ids = report_xml.search(
+        report_ids = http.request.env['ir.actions.report.xml'].search(
             [('report_name', '=', reportname)])
-        for report in report_xml.browse(report_ids):
+        for report in report_ids:
             if not report.download_filename:
                 continue
-            objects = http.request.session.model(report.model)\
+            objects = http.request.env[report.model]\
                 .browse(docids or [])
-            generated_filename = email_template.mako_template_env\
+            generated_filename = mail_template.mako_template_env\
                 .from_string(report.download_filename)\
                 .render({
                     'objects': objects,
@@ -56,7 +55,7 @@ class ReportController(ReportController):
 
     @http.route(['/report/download'])
     def report_download(self, data, token):
-        response = super(ReportController, self).report_download(data, token)
+        response = super(ReportControllerCustom, self).report_download(data, token)
         # if we got another content disposition before, ditch the one added
         # by super()
         last_index = None
